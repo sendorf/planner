@@ -6,13 +6,13 @@ module ActivitiesLoader
 
     def load
       activities_json = read_json
-      Activity.bulk_create_from_json(activities_json)
+      ::Activity.bulk_create_from_json(activities_json)
     end
 
     private
 
     def read_json
-      file = File.read(file_path)
+      file = ::File.read(@file_path)
       JSON.parse(file)
     end
   end
