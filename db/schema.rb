@@ -25,6 +25,9 @@ ActiveRecord::Schema.define(version: 2020_01_27_215054) do
     t.string "latitude"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.index ["category"], name: "index_activities_on_category"
+    t.index ["district"], name: "index_activities_on_district"
+    t.index ["location"], name: "index_activities_on_location"
   end
 
   create_table "open_times", force: :cascade do |t|

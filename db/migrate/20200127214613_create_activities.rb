@@ -11,5 +11,9 @@ class CreateActivities < ActiveRecord::Migration[6.0]
 
       t.timestamps
     end
+
+    add_index :activities, :category
+    add_index :activities, :district
+    add_index :activities, :location
   end
 end
