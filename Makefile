@@ -25,7 +25,7 @@ restart:
 
 test_setup: install ## Setup the test environment
 	$(info Setting up the test environment)
-	@docker-compose run --rm app bash -c "RAILS_ENV=test rake db:drop && RAILS_ENV=test rake db:create && RAILS_ENV=test rake environment db:schema:load"
+	@docker-compose run --rm app bash -c "RAILS_ENV=test rake db:drop db:create && RAILS_ENV=test rake environment db:schema:load"
 
 test: ## Starts the test runner
 	$(info Running tests)

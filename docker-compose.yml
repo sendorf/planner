@@ -13,6 +13,7 @@ services:
     command: bundle exec rails s -p 3000
     volumes:
       - .:/app
+      - bundle_gems:/usr/local/bundle
     ports:
       - "3000:3000"
     env_file:
@@ -27,6 +28,7 @@ services:
     command: bundle exec sidekiq
     volumes:
       - .:/app
+      - bundle_gems:/usr/local/bundle
     env_file:
       - .env
     depends_on:
@@ -36,3 +38,4 @@ services:
 volumes:
   postgres_data:
   redis:
+  bundle_gems:
