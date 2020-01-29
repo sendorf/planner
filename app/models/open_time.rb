@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class OpenTime < ApplicationRecord
   belongs_to :activity
 
@@ -10,9 +12,9 @@ class OpenTime < ApplicationRecord
       times = value.split('-')
 
       activity.open_times.find_or_create_by(
-        wday: %w(su mo tu we th fr sa).index(key),
+        wday: %w[su mo tu we th fr sa].index(key),
         start_time: times[0],
-        end_time: times[1],
+        end_time: times[1]
       )
     end
   end
