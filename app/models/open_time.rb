@@ -11,10 +11,11 @@ class OpenTime < ApplicationRecord
 
       times = value[0].split('-')
 
-      activity.open_times.find_or_create_by(
+      find_or_create_by(
         wday: %w[su mo tu we th fr sa].index(key),
         start_time: times[0],
-        end_time: times[1]
+        end_time: times[1],
+        activity: activity
       )
     end
   end
