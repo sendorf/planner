@@ -7,8 +7,8 @@ module ActivitiesLoader
     end
 
     def load
-      activities_json = read_json
-      ::Activity.bulk_create_from_json(activities_json)
+      activities = read_json
+      ::Activity.bulk_create(activities)
     end
 
     private
