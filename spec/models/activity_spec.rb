@@ -4,7 +4,55 @@ require 'rails_helper'
 
 RSpec.describe Activity, type: :model do
   describe 'associations' do
-    it { should have_many(:open_times).class_name('OpenTime') }
+    it { should have_many(:opening_hours).class_name('OpeningHour') }
+  end
+
+  let(:longitude) { '-34.3432' }
+  let(:latitude) { '-35.332' }
+  let(:name) { 'Fake Activity' }
+  let(:hours_spent) { 3.5 }
+  let(:location) { 'outdoors' }
+  let(:district) { 'Centro' }
+  let(:category) { 'shopping' }
+
+  subject do
+    described_class.new(
+      longitude: longitude, latitude: latitude, name: name, hours_spent: hours_spent,
+      location: location, district: district, category: category
+    )
+  end
+
+  describe 'to_geojson' do
+    let(:opening_hours) { [opening_hour] }
+    let(:opening_hour) { double('opening_hour', wday: 2, start_time: start_time, end_time: end_time) }
+    let(:start_time) { '08:00' }
+    let(:end_time) { '18:00' }
+    let(:hours) { "#{start_time}-#{end_time}" }
+    let(:activity_geojson) do
+      {
+        'type': 'Feature',
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [longitude.to_f, latitude.to_f]
+        },
+        'properties': {
+          'name': name,
+          'hours_spent': hours_spent,
+          'category': category,
+          'location': location,
+          'district': district,
+          'opening_hours': [
+            { 'tu': [hours] }
+          ]
+        }
+      }.to_json
+    end
+
+    it 'returns the subject as a geojson object' do
+      expect(subject).to receive(:opening_hours).and_return opening_hours
+      expect(opening_hour).to receive(:hours).and_return hours
+      expect(subject.to_geojson).to eq activity_geojson
+    end
   end
 
   describe '#bulk_create' do
@@ -65,7 +113,7 @@ RSpec.describe Activity, type: :model do
           it 'returns activities' do
             expect(described_class).to receive(:find_or_create_by).with(activity_fields)
                                                                   .and_return activity_record
-            expect(OpenTime).to receive(:bulk_create).with(activity['opening_hours'], activity_record)
+            expect(OpeningHour).to receive(:bulk_create).with(activity['opening_hours'], activity_record)
             expect(described_class.bulk_create(activities)).to eq activities
           end
         end
@@ -76,7 +124,7 @@ RSpec.describe Activity, type: :model do
           it 'returns activities' do
             expect(described_class).to receive(:find_or_create_by).with(activity_fields)
                                                                   .and_return activity_record
-            expect(OpenTime).to receive(:bulk_create).with(activity['opening_hours'], activity_record)
+            expect(OpeningHour).to receive(:bulk_create).with(activity['opening_hours'], activity_record)
             expect(described_class.bulk_create(activities)).to eq activities
           end
         end
@@ -87,7 +135,7 @@ RSpec.describe Activity, type: :model do
 
         it 'returns activities' do
           expect(described_class).not_to receive(:find_or_create_by)
-          expect(OpenTime).not_to receive(:bulk_create)
+          expect(OpeningHour).not_to receive(:bulk_create)
           expect(described_class.bulk_create(activities)).to eq activities
         end
       end

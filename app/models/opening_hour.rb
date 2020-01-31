@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
-class OpenTime < ApplicationRecord
+class OpeningHour < ApplicationRecord
   belongs_to :activity
+
+  def hours
+    "#{start_time}-#{end_time}"
+  end
 
   def self.bulk_create(open_hours, activity)
     return if activity.blank? || open_hours.blank?

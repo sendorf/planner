@@ -30,7 +30,7 @@ ActiveRecord::Schema.define(version: 2020_01_27_215054) do
     t.index ["location"], name: "index_activities_on_location"
   end
 
-  create_table "open_times", force: :cascade do |t|
+  create_table "opening_hours", force: :cascade do |t|
     t.integer "wday"
     t.string "start_time"
     t.string "end_time"
