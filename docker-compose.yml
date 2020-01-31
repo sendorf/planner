@@ -15,7 +15,7 @@ services:
       - .:/app
       - bundle_gems:/usr/local/bundle
     ports:
-      - "3000:3000"
+      - "${PLANNER_PORT:-3000}:3000"
     env_file:
       - .env
     depends_on:

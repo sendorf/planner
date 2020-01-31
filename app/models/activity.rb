@@ -3,15 +3,16 @@
 class Activity < ApplicationRecord
   has_many :opening_hours
 
-  scope :with_category, ->(category) { where("category like '%#{category}%'") }
-  scope :with_location, ->(location) { where("location like '%#{location}%'") }
-  scope :with_district, ->(district) { where("district like '%#{district}%'") }
+  scope :with_category, ->(category) { where("category ilike '%#{category}%'") }
+  scope :with_location, ->(location) { where("location ilike '%#{location}%'") }
+  scope :with_district, ->(district) { where("district ilike '%#{district}%'") }
 
   def self.filtered_geojson(category: nil, location: nil, district: nil)
     activities = Activity.all
-    activities.with_category(category) if category
-    activities.with_location(location) if location
-    activities.with_district(district) if district
+    activities = activities.with_category(category) if category.present?
+    activities = activities.with_location(location) if location.present?
+    activities = activities.with_district(district) if district.present?
+
     "{\"type\": \"FeatureCollection\", \"features\": [#{activities.map(&:to_geojson).join(',')}]}"
   end
 

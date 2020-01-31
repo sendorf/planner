@@ -14,6 +14,58 @@ RSpec.describe Activity, type: :model do
   let(:location) { 'outdoors' }
   let(:district) { 'Centro' }
   let(:category) { 'shopping' }
+  let(:activity) do
+    {
+      'name' => 'Palacio Real',
+      'opening_hours' => {
+        'mo' => ['10:00-20:00'],
+        'tu' => ['10:00-20:00'],
+        'we' => ['10:00-20:00'],
+        'th' => ['10:00-20:00'],
+        'fr' => ['10:00-20:00'],
+        'sa' => ['10:00-20:00'],
+        'su' => ['10:00-20:00']
+      },
+      'hours_spent' => 1.5,
+      'category' => 'cultural',
+      'location' => 'outdoors',
+      'district' => 'Centro',
+      'latlng' => [40.4173423, -3.7144063]
+    }
+  end
+  let(:start_time) { '08:00' }
+  let(:end_time) { '18:00' }
+  let(:hours) { "#{start_time}-#{end_time}" }
+  let(:activity_geojson) do
+    {
+      'type': 'Feature',
+      'geometry': {
+        'type': 'Point',
+        'coordinates': [longitude.to_f, latitude.to_f]
+      },
+      'properties': {
+        'name': name,
+        'hours_spent': hours_spent,
+        'category': category,
+        'location': location,
+        'district': district,
+        'opening_hours': [
+          { 'tu': hours }
+        ]
+      }
+    }.to_json
+  end
+  let(:activity_fields) do
+    {
+      name: activity['name'],
+      hours_spent: activity['hours_spent'],
+      category: activity['category'],
+      location: activity['location'],
+      district: activity['district'],
+      longitude: activity['latlng'][1],
+      latitude: activity['latlng'][0]
+    }
+  end
 
   subject do
     described_class.new(
@@ -22,31 +74,153 @@ RSpec.describe Activity, type: :model do
     )
   end
 
-  describe 'to_geojson' do
+  describe '#filtered_geojson' do
+    let(:activities_geojson) do
+      "{\"type\": \"FeatureCollection\", \"features\": [#{activities.map(&:to_geojson).join(',')}]}"
+    end
+    let(:filters) do
+      {
+        category: category_filter.to_s,
+        location: location_filter.to_s,
+        district: district_filter.to_s
+      }
+    end
+    let(:activity_record) { instance_double(described_class, activity_fields) }
+    let(:activity_class) { class_double(described_class) }
+    let(:activities) { [activity_record] }
+
+    context 'when catagory is nil' do
+      let(:category_filter) { nil }
+
+      context 'when location is nil' do
+        let(:location_filter) { nil }
+
+        context 'when district is nil' do
+          let(:district_filter) { nil }
+
+          it 'returns a geojson with all activities' do
+            expect(described_class).to receive(:all).and_return activities
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(described_class).not_to receive(:with_district)
+            expect(described_class).not_to receive(:with_location)
+            expect(described_class).not_to receive(:with_category)
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+
+        context 'when district is not nil' do
+          let(:district_filter) { district }
+
+          it 'returns a geojson with activities filtered by district' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(activity_class).to receive(:with_district).with(district_filter).and_return activities
+            expect(described_class).not_to receive(:with_location)
+            expect(described_class).not_to receive(:with_category)
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+      end
+
+      context 'when location is not nil' do
+        let(:location_filter) { location }
+
+        context 'when district is nil' do
+          let(:district_filter) { nil }
+
+          it 'returns a geojson with all activities' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(described_class).not_to receive(:with_district)
+            expect(activity_class).to receive(:with_location).with(location_filter).and_return activities
+            expect(described_class).not_to receive(:with_category)
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+
+        context 'when district is not nil' do
+          let(:district_filter) { district }
+
+          it 'returns a geojson with activities filtered by district' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(activity_class).to receive(:with_district).with(district_filter).and_return activities
+            expect(activity_class).to receive(:with_location).with(location_filter).and_return activity_class
+            expect(described_class).not_to receive(:with_category)
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+      end
+    end
+
+    context 'when catagory is not nil' do
+      let(:category_filter) { category }
+
+      context 'when location is nil' do
+        let(:location_filter) { nil }
+
+        context 'when district is nil' do
+          let(:district_filter) { nil }
+
+          it 'returns a geojson with all activities' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(described_class).not_to receive(:with_district)
+            expect(described_class).not_to receive(:with_location)
+            expect(activity_class).to receive(:with_category).with(category_filter).and_return activities
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+
+        context 'when district is not nil' do
+          let(:district_filter) { district }
+
+          it 'returns a geojson with activities filtered by district' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(activity_class).to receive(:with_district).with(district_filter).and_return activities
+            expect(described_class).not_to receive(:with_location)
+            expect(activity_class).to receive(:with_category).with(category_filter).and_return activity_class
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+      end
+
+      context 'when location is not nil' do
+        let(:location_filter) { location }
+
+        context 'when district is nil' do
+          let(:district_filter) { nil }
+
+          it 'returns a geojson with all activities' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(described_class).not_to receive(:with_district)
+            expect(activity_class).to receive(:with_location).with(location_filter).and_return activities
+            expect(activity_class).to receive(:with_category).with(category_filter).and_return activity_class
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+
+        context 'when district is not nil' do
+          let(:district_filter) { district }
+
+          it 'returns a geojson with activities filtered by district' do
+            expect(described_class).to receive(:all).and_return activity_class
+            expect(activity_record).to receive(:to_geojson).and_return(activity_geojson).twice
+            expect(activity_class).to receive(:with_district).with(district_filter).and_return activities
+            expect(activity_class).to receive(:with_location).with(location_filter).and_return activity_class
+            expect(activity_class).to receive(:with_category).with(category_filter).and_return activity_class
+            expect(described_class.filtered_geojson(filters)).to eq activities_geojson
+          end
+        end
+      end
+    end
+  end
+
+  describe '#to_geojson' do
     let(:opening_hours) { [opening_hour] }
     let(:opening_hour) { double('opening_hour', wday: 2, start_time: start_time, end_time: end_time) }
-    let(:start_time) { '08:00' }
-    let(:end_time) { '18:00' }
-    let(:hours) { "#{start_time}-#{end_time}" }
-    let(:activity_geojson) do
-      {
-        'type': 'Feature',
-        'geometry': {
-          'type': 'Point',
-          'coordinates': [longitude.to_f, latitude.to_f]
-        },
-        'properties': {
-          'name': name,
-          'hours_spent': hours_spent,
-          'category': category,
-          'location': location,
-          'district': district,
-          'opening_hours': [
-            { 'tu': hours }
-          ]
-        }
-      }.to_json
-    end
 
     it 'returns the subject as a geojson object' do
       expect(subject).to receive(:opening_hours).and_return opening_hours
@@ -76,37 +250,6 @@ RSpec.describe Activity, type: :model do
       let(:activities) { [activity] }
 
       context 'when it has a correct element' do
-        let(:activity) do
-          {
-            'name' => 'Palacio Real',
-            'opening_hours' => {
-              'mo' => ['10:00-20:00'],
-              'tu' => ['10:00-20:00'],
-              'we' => ['10:00-20:00'],
-              'th' => ['10:00-20:00'],
-              'fr' => ['10:00-20:00'],
-              'sa' => ['10:00-20:00'],
-              'su' => ['10:00-20:00']
-            },
-            'hours_spent' => 1.5,
-            'category' => 'cultural',
-            'location' => 'outdoors',
-            'district' => 'Centro',
-            'latlng' => [40.4173423, -3.7144063]
-          }
-        end
-        let(:activity_fields) do
-          {
-            name: activity['name'],
-            hours_spent: activity['hours_spent'],
-            category: activity['category'],
-            location: activity['location'],
-            district: activity['district'],
-            longitude: activity['latlng'][1],
-            latitude: activity['latlng'][0]
-          }
-        end
-
         context 'when find/create returns an activity' do
           let(:activity_record) { double('activity') }
 
