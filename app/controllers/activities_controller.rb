@@ -2,6 +2,6 @@
 
 class ActivitiesController < ApplicationController
   def available
-    render json: true
+    render json: Activity.filtered_geojson
   end
 end

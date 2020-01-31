@@ -3,6 +3,18 @@
 class Activity < ApplicationRecord
   has_many :opening_hours
 
+  scope :with_category, ->(category) { where("category like '%#{category}%'") }
+  scope :with_location, ->(location) { where("location like '%#{location}%'") }
+  scope :with_district, ->(district) { where("district like '%#{district}%'") }
+
+  def self.filtered_geojson(category: nil, location: nil, district: nil)
+    activities = Activity.all
+    activities.with_category(category) if category
+    activities.with_location(location) if location
+    activities.with_district(district) if district
+    "{\"type\": \"FeatureCollection\", \"features\": [#{activities.map(&:to_geojson).join(',')}]}"
+  end
+
   def to_geojson
     {
       'type': 'Feature',
@@ -39,7 +51,7 @@ class Activity < ApplicationRecord
   def opening_hours_geojson
     opening_hours_array = []
     opening_hours.each do |opening_hour|
-      opening_hours_array << { %w[su mo tu we th fr sa][opening_hour.wday] => [opening_hour.hours] }
+      opening_hours_array << { %w[su mo tu we th fr sa][opening_hour.wday] => opening_hour.hours }
     end
     opening_hours_array
   end

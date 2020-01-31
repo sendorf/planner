@@ -42,7 +42,7 @@ RSpec.describe Activity, type: :model do
           'location': location,
           'district': district,
           'opening_hours': [
-            { 'tu': [hours] }
+            { 'tu': hours }
           ]
         }
       }.to_json
