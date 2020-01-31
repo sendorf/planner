@@ -18,7 +18,7 @@ start: ## Starts the development server
 	$(info Starting the development server)
 	@docker-compose run --rm --service-ports app bundle exec rails s -b 0.0.0.0
 
-restart:
+restart: ## Restarts the development server
 	$(info Restarting all the containers and then starting the development server)
 	@docker-compose restart
 	@docker-compose run --rm --service-ports app bundle exec rails s -b 0.0.0.0
