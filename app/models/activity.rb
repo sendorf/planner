@@ -6,6 +6,18 @@ class Activity < ApplicationRecord
   scope :with_category, ->(category) { where("category ilike '%#{category}%'") }
   scope :with_location, ->(location) { where("location ilike '%#{location}%'") }
   scope :with_district, ->(district) { where("district ilike '%#{district}%'") }
+  scope :indoors, -> { where(location: 'indoors') }
+
+  def self.recommend(start_time: nil, end_time: nil, date: nil)
+    return if start_time.blank? || end_time.blank? || date.blank?
+
+    filtered_opening_hours = OpeningHour.wday(date.to_date.wday).between_hours(start_time, end_time)
+    activities = filtered_opening_hours.flat_map(&:activity).uniq
+    activity = activities.max_by(&:hours_spent)
+    return if activity.blank?
+
+    activity.to_geojson
+  end
 
   def self.filtered_geojson(category: nil, location: nil, district: nil)
     activities = Activity.all

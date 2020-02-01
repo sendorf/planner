@@ -3,6 +3,11 @@
 class OpeningHour < ApplicationRecord
   belongs_to :activity
 
+  scope(:between_hours, lambda do |start_time, end_time|
+    where("start_time <= '#{start_time}' AND end_time >= '#{end_time}'")
+  end)
+  scope :wday, ->(wday) { where(wday: wday) }
+
   def hours
     "#{start_time}-#{end_time}"
   end

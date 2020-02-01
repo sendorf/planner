@@ -3,6 +3,7 @@ Rails.application.routes.draw do
   resources :activities, only: [] do
     collection do
       get :available
+      get :recommend
     end
   end
 end
