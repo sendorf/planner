@@ -29,7 +29,7 @@ test_setup: install ## Setup the test environment
 
 test: ## Starts the test runner
 	$(info Running tests)
-	@docker-compose run --rm app bundle exec rspec
+	@docker-compose run --rm app bundle exec rspec --format documentation
 
 populate: ## Populates the data base
 	$(info Populating DataBase)
