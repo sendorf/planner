@@ -7,13 +7,15 @@ class Activity < ApplicationRecord
   scope :with_location, ->(location) { where("location ilike '%#{location}%'") }
   scope :with_district, ->(district) { where("district ilike '%#{district}%'") }
   scope :indoors, -> { where(location: 'indoors') }
+  scope :available_activity, ->(available_time) { where("hours_spent <= #{available_time}") }
 
   def self.recommend(start_time: nil, end_time: nil, date: nil)
-    return if start_time.blank? || end_time.blank? || date.blank?
+    return if wrong_recomendation_params(start_time, end_time, date)
 
-    filtered_opening_hours = OpeningHour.wday(date.to_date.wday).between_hours(start_time, end_time)
-    activities = filtered_opening_hours.flat_map(&:activity).uniq
-    activity = activities.max_by(&:hours_spent)
+    start_time, end_time = time_order(start_time, end_time)
+
+    activity = obtain_recommendation(start_time, end_time, date)
+
     return if activity.blank?
 
     activity.to_geojson
@@ -61,6 +63,34 @@ class Activity < ApplicationRecord
 
   private
 
+  def self.available_time(start_time, end_time)
+    (end_time.to_time - start_time.to_time) / 3600
+  end
+
+  def self.wrong_recomendation_params(start_time, end_time, date)
+    start_time.to_time.blank? || end_time.to_time.blank? || date.to_date.blank? || start_time == end_time
+  rescue ArgumentError
+    true
+  rescue NoMethodError
+    true
+  end
+
+  def self.obtain_recommendation(start_time, end_time, date)
+    available_time = available_time(start_time, end_time)
+    filtered_opening_hours = OpeningHour.wday(date.to_date.wday).between_hours(start_time, end_time)
+    activity_ids = filtered_opening_hours.flat_map(&:activity_id).uniq
+    where(id: activity_ids).available_activity(available_time).max_by(&:hours_spent)
+  end
+
+  def self.time_order(start_time, end_time)
+    if start_time >= end_time
+      aux = end_time
+      end_time = start_time
+      start_time = aux
+    end
+    [start_time, end_time]
+  end
+
   def opening_hours_geojson
     opening_hours_array = []
     opening_hours.each do |opening_hour|
@@ -82,4 +112,8 @@ class Activity < ApplicationRecord
   end
 
   private_class_method :extract_activity_fields
+  private_class_method :wrong_recomendation_params
+  private_class_method :available_time
+  private_class_method :time_order
+  private_class_method :obtain_recommendation
 end

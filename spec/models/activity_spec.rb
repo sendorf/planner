@@ -14,6 +14,7 @@ RSpec.describe Activity, type: :model do
   let(:location) { 'outdoors' }
   let(:district) { 'Centro' }
   let(:category) { 'shopping' }
+  let(:activity_class) { class_double(described_class) }
   let(:activity) do
     {
       'name' => name,
@@ -82,8 +83,21 @@ RSpec.describe Activity, type: :model do
     let(:activity_record) { instance_double(described_class, activity_fields) }
     let(:activity_record_1) { instance_double(described_class, activity_fields_1) }
     let(:hours_spent_1) { 3.5 }
+    let(:activity_fields) do
+      {
+        id: 34,
+        name: activity['name'],
+        hours_spent: activity['hours_spent'],
+        category: activity['category'],
+        location: activity['location'],
+        district: activity['district'],
+        longitude: activity['latlng'][1],
+        latitude: activity['latlng'][0]
+      }
+    end
     let(:activity_fields_1) do
       {
+        id: 54,
         name: 'Fake',
         hours_spent: hours_spent_1,
         category: 'Categ',
@@ -100,7 +114,7 @@ RSpec.describe Activity, type: :model do
         start_time: start_time,
         end_time: end_time,
         wday: 4,
-        activity: activity_record
+        activity_id: activity_record.id
       }
     end
     let(:opening_hour_fields_1) do
@@ -108,7 +122,7 @@ RSpec.describe Activity, type: :model do
         start_time: start_time,
         end_time: end_time,
         wday: 4,
-        activity: activity_record_1
+        activity_id: activity_record_1.id
       }
     end
     let(:filters) do
@@ -140,32 +154,154 @@ RSpec.describe Activity, type: :model do
       end
     end
 
-    context 'when no opening hours matches the filters' do
-      let(:opening_hours) { [] }
+    context 'when date is incorrect' do
+      let(:filters) { { end_time: end_time, start_time: start_time, date: 'vcxsdfa' } }
       it 'returns null' do
-        expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
-        expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
         expect(described_class.recommend(filters)).to eq nil
       end
     end
 
-    context 'when one opening hour matches the filters' do
-      let(:opening_hours) { [opening_hour_record] }
-      it 'returns the activity in geojson format' do
-        expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
-        expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
-        expect(activity_record).to receive(:to_geojson).and_return activity_geojson
-        expect(described_class.recommend(filters)).to eq activity_geojson
+    context 'when start_time is incorrect' do
+      let(:filters) { { end_time: end_time, start_time: 'dsafsadsa', date: date } }
+      it 'returns null' do
+        expect(described_class.recommend(filters)).to eq nil
       end
     end
 
-    context 'when more than one opening hour matches the filters' do
-      let(:opening_hours) { [opening_hour_record, opening_hour_record_1] }
-      it 'returns the activity with more hours spent in geojson format' do
-        expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
-        expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
-        expect(activity_record_1).to receive(:to_geojson).and_return activity_geojson
-        expect(described_class.recommend(filters)).to eq activity_geojson
+    context 'when start_time is incorrect' do
+      let(:filters) { { end_time: 'rcsafasfsa', start_time: start_time, date: date } }
+      it 'returns null' do
+        expect(described_class.recommend(filters)).to eq nil
+      end
+    end
+
+    context 'when start_time and end_time are equal' do
+      let(:filters) { { end_time: start_time, start_time: start_time, date: date } }
+      it 'returns null' do
+        expect(described_class.recommend(filters)).to eq nil
+      end
+    end
+
+    context 'when start and end time are correctly ordered' do
+      context 'when no opening hours matches the filters' do
+        let(:opening_hours) { [] }
+        it 'returns null' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class.recommend(filters)).to eq nil
+        end
+      end
+
+      context 'when no activity matches the available activity filter matches the filters' do
+        let(:opening_hours) { [opening_hour_record] }
+        let(:activity_ids) { [activity_record.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [] }
+
+        it 'returns null' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(described_class.recommend(filters)).to eq nil
+        end
+      end
+
+      context 'when one opening hour matches the filters' do
+        let(:opening_hours) { [opening_hour_record] }
+        let(:activity_ids) { [activity_record.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [activity_record] }
+
+        it 'returns the activity in geojson format' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(activity_record).to receive(:to_geojson).and_return activity_geojson
+          expect(described_class.recommend(filters)).to eq activity_geojson
+        end
+      end
+
+      context 'when more than one opening hour matches the filters' do
+        let(:opening_hours) { [opening_hour_record, opening_hour_record_1] }
+        let(:activity_ids) { [activity_record.id, activity_record_1.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [activity_record, activity_record_1] }
+
+        it 'returns the activity with more hours spent in geojson format' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(activity_record_1).to receive(:to_geojson).and_return activity_geojson
+          expect(described_class.recommend(filters)).to eq activity_geojson
+        end
+      end
+    end
+
+    context 'when start and end time are incorrectly ordered' do
+      let(:filters) do
+        {
+          start_time: end_time,
+          end_time: start_time,
+          date: date
+        }
+      end
+      context 'when no opening hours matches the filters' do
+        let(:opening_hours) { [] }
+        it 'returns null' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class.recommend(filters)).to eq nil
+        end
+      end
+
+      context 'when no activity matches the available activity filter matches the filters' do
+        let(:opening_hours) { [opening_hour_record] }
+        let(:activity_ids) { [activity_record.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [] }
+
+        it 'returns null' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(described_class.recommend(filters)).to eq nil
+        end
+      end
+
+      context 'when one opening hour matches the filters' do
+        let(:opening_hours) { [opening_hour_record] }
+        let(:activity_ids) { [activity_record.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [activity_record] }
+
+        it 'returns the activity in geojson format' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(activity_record).to receive(:to_geojson).and_return activity_geojson
+          expect(described_class.recommend(filters)).to eq activity_geojson
+        end
+      end
+
+      context 'when more than one opening hour matches the filters' do
+        let(:opening_hours) { [opening_hour_record, opening_hour_record_1] }
+        let(:activity_ids) { [activity_record.id, activity_record_1.id] }
+        let(:available_time) { (end_time.to_time - start_time.to_time) / 3600 }
+        let(:activities) { [activity_record, activity_record_1] }
+
+        it 'returns the activity with more hours spent in geojson format' do
+          expect(OpeningHour).to receive(:wday).with(date.to_date.wday).and_return opening_hour_class
+          expect(opening_hour_class).to receive(:between_hours).with(start_time, end_time).and_return opening_hours
+          expect(described_class).to receive(:where).with(id: activity_ids).and_return activity_class
+          expect(activity_class).to receive(:available_activity).with(available_time).and_return activities
+          expect(activity_record_1).to receive(:to_geojson).and_return activity_geojson
+          expect(described_class.recommend(filters)).to eq activity_geojson
+        end
       end
     end
   end
@@ -182,7 +318,6 @@ RSpec.describe Activity, type: :model do
       }
     end
     let(:activity_record) { instance_double(described_class, activity_fields) }
-    let(:activity_class) { class_double(described_class) }
     let(:activities) { [activity_record] }
 
     context 'when catagory is nil' do
